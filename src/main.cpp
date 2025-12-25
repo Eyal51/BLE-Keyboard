@@ -45,30 +45,67 @@ class KeyboardCallbacks : public BLECharacteristicCallbacks {
         std::string raw = pCharacteristic->getValue();
 
         if (raw.length() > 0) {
-            // Check for special commands (prefixed with !)
-            std::string cmd = trim(raw);
+            std::string input = trim(raw);
 
             Serial.print("Received: [");
-            Serial.print(cmd.c_str());
+            Serial.print(input.c_str());
             Serial.println("]");
 
-            if (cmd[0] == '!') {
-                handleSpecialCommand(cmd);
+            // Check for macro chain (|| delimiter)
+            if (input.find("||") != std::string::npos) {
+                executeMacro(input);
+            } else if (input[0] == '!') {
+                handleSpecialCommand(input);
             } else {
                 // Type the received string as-is (including newlines if present)
-                for (char c : raw) {
-                    if (c == '\n') {
-                        Keyboard.press(KEY_RETURN);
-                        Keyboard.release(KEY_RETURN);
-                    } else if (c != '\r') {
-                        Keyboard.print(c);
-                    }
-                }
+                typeText(raw);
             }
 
             // Send confirmation back to phone
             pTxCharacteristic->setValue("OK");
             pTxCharacteristic->notify();
+        }
+    }
+
+    void typeText(const std::string& text) {
+        for (char c : text) {
+            if (c == '\n') {
+                Keyboard.press(KEY_RETURN);
+                Keyboard.release(KEY_RETURN);
+            } else if (c != '\r') {
+                Keyboard.print(c);
+            }
+        }
+    }
+
+    void executeMacro(const std::string& macro) {
+        std::string remaining = macro;
+        std::string delimiter = "||";
+        size_t pos;
+
+        while ((pos = remaining.find(delimiter)) != std::string::npos) {
+            std::string segment = remaining.substr(0, pos);
+            executeSegment(trim(segment));
+            remaining = remaining.substr(pos + delimiter.length());
+            delay(50);  // Small delay between macro steps
+        }
+        // Execute last segment
+        if (!remaining.empty()) {
+            executeSegment(trim(remaining));
+        }
+    }
+
+    void executeSegment(const std::string& segment) {
+        if (segment.empty()) return;
+
+        Serial.print("Macro segment: [");
+        Serial.print(segment.c_str());
+        Serial.println("]");
+
+        if (segment[0] == '!') {
+            handleSpecialCommand(segment);
+        } else {
+            typeText(segment);
         }
     }
 
@@ -105,6 +142,20 @@ class KeyboardCallbacks : public BLECharacteristicCallbacks {
             Keyboard.press(KEY_RIGHT_ARROW);
             Keyboard.release(KEY_RIGHT_ARROW);
         }
+        // Sticky modifier keys (hold until release or key press)
+        else if (cmd == "!HOLD+CTRL") {
+            Keyboard.pressRaw(0xE0);  // Left Ctrl
+        }
+        else if (cmd == "!HOLD+ALT") {
+            Keyboard.pressRaw(0xE2);  // Left Alt
+        }
+        else if (cmd == "!HOLD+SHIFT") {
+            Keyboard.pressRaw(0xE1);  // Left Shift
+        }
+        else if (cmd == "!HOLD+SUPER") {
+            Keyboard.pressRaw(0xE3);  // Left GUI
+        }
+        // Common combos (still supported)
         else if (cmd == "!CTRL+C") {
             Keyboard.press(KEY_LEFT_CTRL);
             Keyboard.press('c');
@@ -148,10 +199,10 @@ class KeyboardCallbacks : public BLECharacteristicCallbacks {
             Keyboard.releaseAll();
         }
         else if (cmd == "!SUPER") {
-            Keyboard.press(KEY_LEFT_GUI);
-            delay(200);
+            // Use pressRaw with 0xE3 (USB HID Left GUI) to force report send
+            Keyboard.pressRaw(0xE3);
+            delay(300);
             Keyboard.releaseAll();
-            delay(50);
         }
         else if (cmd == "!SUPER2") {
             // Try right GUI key
@@ -164,6 +215,22 @@ class KeyboardCallbacks : public BLECharacteristicCallbacks {
             Keyboard.press(KEY_LEFT_GUI);
             delay(20);
             Keyboard.press('d');
+            delay(20);
+            Keyboard.releaseAll();
+        }
+        else if (cmd == "!SUPER+A") {
+            // GNOME show applications
+            Keyboard.press(KEY_LEFT_GUI);
+            delay(20);
+            Keyboard.press('a');
+            delay(20);
+            Keyboard.releaseAll();
+        }
+        else if (cmd == "!SUPER+L") {
+            // Lock screen
+            Keyboard.press(KEY_LEFT_GUI);
+            delay(20);
+            Keyboard.press('l');
             delay(20);
             Keyboard.releaseAll();
         }
