@@ -210,11 +210,27 @@ class KeyboardCallbacks : public BLECharacteristicCallbacks {
             delay(200);
             Keyboard.releaseAll();
         }
+        else if (cmd == "!SUPER+R") {
+            // Windows Run dialog
+            Keyboard.press(KEY_LEFT_GUI);
+            delay(20);
+            Keyboard.press('r');
+            delay(20);
+            Keyboard.releaseAll();
+        }
         else if (cmd == "!SUPER+D") {
             // Show desktop
             Keyboard.press(KEY_LEFT_GUI);
             delay(20);
             Keyboard.press('d');
+            delay(20);
+            Keyboard.releaseAll();
+        }
+        else if (cmd == "!SUPER+E") {
+            // Windows Explorer
+            Keyboard.press(KEY_LEFT_GUI);
+            delay(20);
+            Keyboard.press('e');
             delay(20);
             Keyboard.releaseAll();
         }

@@ -31,7 +31,6 @@ Your phone connects to the AtomS3U via Bluetooth Low Energy. The AtomS3U receive
 ### 1. Flash the Firmware
 
 ```bash
-cd /home/eyal/atoms3u-ble-keyboard
 pio run -t upload
 ```
 
@@ -85,10 +84,39 @@ Simply type any text and send - it will be typed on your PC followed by Enter.
 | `!CTRL+S` | Save |
 | `!ALT+TAB` | Switch Window |
 | `!SUPER` | Super/Windows Key |
+| `!SUPER+D` | Show Desktop |
+| `!SUPER+A` | GNOME Show Applications |
+| `!SUPER+L` | Lock Screen |
+
+### Sticky Modifiers
+
+Hold a modifier key until you press another key or release:
+
+| Command | Modifier |
+|---------|----------|
+| `!HOLD+CTRL` | Hold Ctrl |
+| `!HOLD+ALT` | Hold Alt |
+| `!HOLD+SHIFT` | Hold Shift |
+| `!HOLD+SUPER` | Hold Super/Win |
+| `!RELEASE` | Release all keys |
+
+Example: Send `!HOLD+CTRL` then `t` to trigger Ctrl+T.
 
 ### Function Keys
 
 `!F1` through `!F12`
+
+### Macros
+
+Chain multiple commands using `||` as delimiter:
+
+```
+!SUPER+R||cmd||!ENTER||whoami||!ENTER
+```
+
+This opens Run dialog, types "cmd", presses Enter, types "whoami", presses Enter.
+
+Each segment can be a command (`!ENTER`) or text to type (`whoami`). A 50ms delay is added between segments.
 
 ## Web App (Optional)
 
