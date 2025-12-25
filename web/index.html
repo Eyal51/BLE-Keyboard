@@ -132,6 +132,32 @@
         .key-btn.danger { background: #c0392b; }
         .key-btn.success { background: #27ae60; }
 
+        .modifier-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .mod-btn {
+            padding: 14px 8px;
+            font-size: 0.85rem;
+            border: 2px solid #555;
+            border-radius: 10px;
+            background: #1a1a2e;
+            color: #888;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+
+        .mod-btn.active {
+            border-color: #e74c3c;
+            background: #e74c3c33;
+            color: #e74c3c;
+            box-shadow: 0 0 10px #e74c3c55;
+        }
+
         .arrows {
             display: grid;
             grid-template-areas:
@@ -183,6 +209,14 @@
                 </div>
             </div>
 
+            <div class="section-title">Modifiers (tap to lock, tap again or type to release)</div>
+            <div class="modifier-row">
+                <button class="mod-btn" data-mod="CTRL" data-cmd="!HOLD+CTRL">Ctrl</button>
+                <button class="mod-btn" data-mod="ALT" data-cmd="!HOLD+ALT">Alt</button>
+                <button class="mod-btn" data-mod="SHIFT" data-cmd="!HOLD+SHIFT">Shift</button>
+                <button class="mod-btn" data-mod="SUPER" data-cmd="!HOLD+SUPER">Super</button>
+            </div>
+
             <div class="section-title">Common Keys</div>
             <div class="key-grid grid-4">
                 <button class="key-btn primary wide" data-key="!ENTER">Enter</button>
@@ -190,8 +224,8 @@
                 <button class="key-btn" data-key="!ESC">Esc</button>
                 <button class="key-btn" data-key="!BACKSPACE">Bksp</button>
                 <button class="key-btn" data-key=" ">Space</button>
-                <button class="key-btn" data-key="!SUPER">Super</button>
                 <button class="key-btn" data-key="!F5">F5</button>
+                <button class="key-btn danger" data-key="!RELEASE">Release</button>
             </div>
 
             <div class="section-title">Arrows</div>
@@ -208,8 +242,10 @@
                 <button class="key-btn" data-key="!CTRL+C">Ctrl+C</button>
                 <button class="key-btn" data-key="!CTRL+V">Ctrl+V</button>
                 <button class="key-btn" data-key="!CTRL+Z">Ctrl+Z</button>
-                <button class="key-btn wide" data-key="!ALT+TAB">Alt+Tab</button>
-                <button class="key-btn danger wide" data-key="!RELEASE">Release All</button>
+                <button class="key-btn" data-key="!CTRL+T">Ctrl+T</button>
+                <button class="key-btn" data-key="!CTRL+W">Ctrl+W</button>
+                <button class="key-btn" data-key="!CTRL+S">Ctrl+S</button>
+                <button class="key-btn" data-key="!ALT+TAB">Alt+Tab</button>
             </div>
 
             <div class="section-title">Function Keys</div>
@@ -238,6 +274,7 @@
 
         let device = null;
         let characteristic = null;
+        const activeModifiers = new Set();
 
         const connectBtn = document.getElementById('connectBtn');
         const controls = document.getElementById('controls');
@@ -327,24 +364,66 @@
             }
         });
 
-        sendBtn.addEventListener('click', () => {
+        sendBtn.addEventListener('click', async () => {
             if (textInput.value) {
-                send(textInput.value);
+                await send(textInput.value);
                 textInput.value = '';
+                if (activeModifiers.size > 0) {
+                    await send('!RELEASE');
+                    clearModifiers();
+                }
             }
         });
 
-        textInput.addEventListener('keypress', (e) => {
+        textInput.addEventListener('keypress', async (e) => {
             if (e.key === 'Enter' && textInput.value) {
-                send(textInput.value);
+                await send(textInput.value);
                 textInput.value = '';
+                if (activeModifiers.size > 0) {
+                    await send('!RELEASE');
+                    clearModifiers();
+                }
             }
         });
 
+        function clearModifiers() {
+            activeModifiers.clear();
+            document.querySelectorAll('.mod-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        // Modifier toggle buttons
+        document.querySelectorAll('.mod-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const mod = btn.dataset.mod;
+                const cmd = btn.dataset.cmd;
+
+                if (activeModifiers.has(mod)) {
+                    // Already active - release all and clear
+                    await send('!RELEASE');
+                    clearModifiers();
+                } else {
+                    // Activate this modifier
+                    await send(cmd);
+                    activeModifiers.add(mod);
+                    btn.classList.add('active');
+                }
+            });
+        });
+
+        // Regular key buttons - release modifiers after key press
         document.querySelectorAll('.key-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const key = btn.dataset.key;
-                if (key) send(key);
+                if (key) {
+                    await send(key);
+                    // Release modifiers after any key press (except !RELEASE itself)
+                    if (key !== '!RELEASE' && activeModifiers.size > 0) {
+                        await send('!RELEASE');
+                        clearModifiers();
+                    } else if (key === '!RELEASE') {
+                        clearModifiers();
+                    }
+                }
             });
         });
 
